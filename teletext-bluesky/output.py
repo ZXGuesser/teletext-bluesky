@@ -1,5 +1,5 @@
 from processor import *
-import datetime
+from dateutil import parser
 import requests
 import json
 import io
@@ -145,7 +145,7 @@ def write_posts(count, config, query):
         post_text = post_highlight_query(post_text, query, config)
         post_text = charsub(post_text)
         post_text = textwrap.wrap(post_text, 38) # make sure our lines fit on the screen
-        post_time = datetime.datetime.fromisoformat(status["record"]["createdAt"])
+        post_time = parser.parse(status["record"]["createdAt"])
         post_human_time = post_time.strftime("%d-%b-%Y %H:%S") # reformat time/date output
         post_username = charsub(status["author"]["displayName"])[:18]
 
