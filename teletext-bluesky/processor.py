@@ -39,6 +39,7 @@ def charsub(text):
     text = text.replace("&lt;", "<")
     text = text.replace("&gt;", ">")
     text = text.replace("&amp;", "&")
+    text = text.replace("​", "") # zero-width space
     
     # digraphs and ligatures
     text = text.replace("Ǳ", "DZ")
