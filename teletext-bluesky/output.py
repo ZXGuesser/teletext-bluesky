@@ -147,7 +147,10 @@ def write_posts(count, config, query):
         post_text = textwrap.wrap(post_text, 38) # make sure our lines fit on the screen
         post_time = parser.parse(status["record"]["createdAt"])
         post_human_time = post_time.strftime("%d-%b-%Y %H:%S") # reformat time/date output
-        post_username = charsub(status["author"]["displayName"])[:18]
+        if "displayName" in status["author"]:
+            post_username = charsub(status["author"]["displayName"])[:18]
+        else:
+            post_username = charsub(status["author"]["handle"])[:18]
 
         post_length = len(post_text) + 1 # how long is our next post? (including info line)
         if (line_position + post_length) > 23: # are we about to go over the page?
