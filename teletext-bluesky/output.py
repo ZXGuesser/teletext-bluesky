@@ -1,5 +1,6 @@
 from processor import *
 from dateutil import parser
+from dateutil import tz
 import requests
 import json
 import io
@@ -145,8 +146,8 @@ def write_posts(count, config, query):
         post_text = post_highlight_query(post_text, query, config)
         post_text = charsub(post_text)
         post_text = textwrap.wrap(post_text, 38) # make sure our lines fit on the screen
-        post_time = parser.parse(status["record"]["createdAt"])
-        post_human_time = post_time.strftime("%d/%m %H:%S") # reformat time/date output
+        post_time = parser.isoparse(status["record"]["createdAt"]).astimezone(tz.tzlocal())
+        post_human_time = post_time.strftime("%d/%m %H:%M") # reformat time/date output
         if "displayName" in status["author"]:
             post_username = charsub(status["author"]["displayName"])[:35-len(post_human_time)]
         else:
