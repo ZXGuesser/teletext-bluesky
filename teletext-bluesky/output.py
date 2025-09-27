@@ -30,7 +30,7 @@ def write_post_line(file, line_num, line, config):
 
 def write_post_replying(file, line_num, username, config):
     string = "OL," + str(line_num) + ","
-    string += "Replying to" + ESCAPE + chr(text_colours[config["username_colour"]]) + username[:27] + ":"
+    string += "Replying to" + ESCAPE + chr(text_colours[config["username_colour"]]) + username + ":"
     string += "\r\n"
     file.write(string)
 
@@ -146,11 +146,11 @@ def write_posts(count, config, query):
         post_text = charsub(post_text)
         post_text = textwrap.wrap(post_text, 38) # make sure our lines fit on the screen
         post_time = parser.parse(status["record"]["createdAt"])
-        post_human_time = post_time.strftime("%d-%b-%Y %H:%S") # reformat time/date output
+        post_human_time = post_time.strftime("%d/%m %H:%S") # reformat time/date output
         if "displayName" in status["author"]:
-            post_username = charsub(status["author"]["displayName"])[:18]
+            post_username = charsub(status["author"]["displayName"])[:35-len(post_human_time)]
         else:
-            post_username = charsub(status["author"]["handle"])[:18]
+            post_username = charsub(status["author"]["handle"])[:35-len(post_human_time)]
 
         post_length = len(post_text) + 1 # how long is our next post? (including info line)
         if (line_position + post_length) > 23: # are we about to go over the page?
@@ -176,9 +176,9 @@ def write_posts(count, config, query):
             response = requests.get(url="https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?depth=0&uri={}".format(status["record"]["reply"]["parent"]["uri"]))
             j = json.loads(response.text)
             if "thread" in j:
-                reply_username = j["thread"]["post"]["author"]["displayName"]
+                reply_username = j["thread"]["post"]["author"]["displayName"][:27]
                 if reply_username == "":
-                    reply_username = j["thread"]["post"]["author"]["handle"]
+                    reply_username = j["thread"]["post"]["author"]["handle"][:27]
                 reply_username_enhanced = charenhance(reply_username, 13)
                 if reply_username_enhanced[1]:
                     subpage_enhancements.append([line_position+40,4,0]) # active position to start of row
