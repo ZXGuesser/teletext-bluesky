@@ -112,11 +112,11 @@ def write_posts(count, config, query):
             
             if (line_position + post_length) > 23:
                 subpage += 1
-                if subpage > 99:
+                if subpage > 79:
                     break # reached subpage limit - no point checking the rest
                 line_position = 4
             line_position += post_length
-        max_subpages = min(subpage, 99)
+        max_subpages = min(subpage, 79)
         
         # reset everything for the actual writing
         subpage = 1
@@ -157,6 +157,8 @@ def write_posts(count, config, query):
                 post_username = charsub(status["author"]["handle"])[:35-len(post_human_time)]
 
             post_length = len(post_text) + 1 # how long is our next post? (including info line)
+            if "reply" in status["record"]:
+                post_length = post_length + 1 # add extra line for reply string
             if (line_position + post_length) > 23: # are we about to go over the page?
                 file.write("OL,24,"+ config["footer"] +"\r\n")
                 if subpage_enhancements:
@@ -165,7 +167,7 @@ def write_posts(count, config, query):
                 subpage_enhancements = []
                 if "logo_invocation" in config.keys():
                     subpage_enhancements.extend(config["logo_invocation"])
-                if subpage > 99:
+                if subpage > 79:
                     return # reached subpage limit - dump the rest
                 write_header(file, subpage, max_subpages, config)
                 line_position = 4 # and reset our cursor
