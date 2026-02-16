@@ -73,152 +73,154 @@ def write_enhancements(file, enhancements):
 
 def write_posts(count, config, query):
     response = requests.get(url="https://api.bsky.app/xrpc/app.bsky.feed.searchPosts?limit={}&q={}".format(count, query))
-    j = json.loads(response.text)
-    
-    if "posts" in j:
-        statuses = j["posts"]
+    try:
+        j = json.loads(response.text)
+        if "posts" in j:
+            statuses = j["posts"]
 
-        file = io.StringIO() # buffer to build our file
-        subpage = 1
+            file = io.StringIO() # buffer to build our file
+            subpage = 1
 
-        # pre-calculate how many subpages we're going to
-        # write - is there a better way of doing this?
-        line_position = 4
-        for status in statuses:
-            if "facets" in status["record"]:
-                postbytes = bytearray(status["record"]["text"], "utf8")
-                for facet in status["record"]["facets"]:
-                    if facet["features"][0]["$type"] == "app.bsky.richtext.facet#link":
-                        facetbytes = bytearray(status["record"]["text"], "utf8")
-                        postbytes = postbytes.replace(facetbytes[facet["index"]["byteStart"]:facet["index"]["byteEnd"]],bytes("<LINK>", encoding="utf8"))
-                post_text = postbytes.decode("utf8")
-            else:
+            # pre-calculate how many subpages we're going to
+            # write - is there a better way of doing this?
+            line_position = 4
+            for status in statuses:
+                if "facets" in status["record"]:
+                    postbytes = bytearray(status["record"]["text"], "utf8")
+                    for facet in status["record"]["facets"]:
+                        if facet["features"][0]["$type"] == "app.bsky.richtext.facet#link":
+                            facetbytes = bytearray(status["record"]["text"], "utf8")
+                            postbytes = postbytes.replace(facetbytes[facet["index"]["byteStart"]:facet["index"]["byteEnd"]],bytes("<LINK>", encoding="utf8"))
+                    post_text = postbytes.decode("utf8")
+                else:
+                    post_text = status["record"]["text"]
+                
+                if "embed" in status["record"]:
+                    if status["record"]["embed"]["$type"] == "app.bsky.embed.images":
+                        post_text += " <IMAGE>"
+                    if status["record"]["embed"]["$type"] == "app.bsky.embed.video":
+                        post_text += " <VIDEO>"
+                
+                post_text = post_remove_emojis(post_text, config)
+                post_text = post_highlight_query(post_text, query, config)
+                post_text = charsub(post_text)
+                post_text = textwrap.wrap(post_text, 38)
+                post_length = len(post_text) + 1
+                
+                if "reply" in status["record"]:
+                    post_length = post_length + 1 # add extra line for reply string
+                
+                if (line_position + post_length) > 23:
+                    subpage += 1
+                    if subpage > 79:
+                        break # reached subpage limit - no point checking the rest
+                    line_position = 4
+                line_position += post_length
+            max_subpages = min(subpage, 79)
+            
+            # reset everything for the actual writing
+            subpage = 1
+            write_header(file, subpage, max_subpages, config)
+            line_position = 4
+            subpage_enhancements = []
+            
+            if "logo_invocation" in config.keys():
+                subpage_enhancements.extend(config["logo_invocation"])
+
+            for status in statuses: # iterate through our responses
                 post_text = status["record"]["text"]
-            
-            if "embed" in status["record"]:
-                if status["record"]["embed"]["$type"] == "app.bsky.embed.images":
-                    post_text += " <IMAGE>"
-                if status["record"]["embed"]["$type"] == "app.bsky.embed.video":
-                    post_text += " <VIDEO>"
-            
-            post_text = post_remove_emojis(post_text, config)
-            post_text = post_highlight_query(post_text, query, config)
-            post_text = charsub(post_text)
-            post_text = textwrap.wrap(post_text, 38)
-            post_length = len(post_text) + 1
-            
-            if "reply" in status["record"]:
-                post_length = post_length + 1 # add extra line for reply string
-            
-            if (line_position + post_length) > 23:
-                subpage += 1
-                if subpage > 79:
-                    break # reached subpage limit - no point checking the rest
-                line_position = 4
-            line_position += post_length
-        max_subpages = min(subpage, 79)
-        
-        # reset everything for the actual writing
-        subpage = 1
-        write_header(file, subpage, max_subpages, config)
-        line_position = 4
-        subpage_enhancements = []
-        
-        if "logo_invocation" in config.keys():
-            subpage_enhancements.extend(config["logo_invocation"])
+                if "facets" in status["record"]:
+                    postbytes = bytearray(status["record"]["text"], "utf8")
+                    for facet in status["record"]["facets"]:
+                        if facet["features"][0]["$type"] == "app.bsky.richtext.facet#link":
+                            facetbytes = bytearray(status["record"]["text"], "utf8")
+                            postbytes = postbytes.replace(facetbytes[facet["index"]["byteStart"]:facet["index"]["byteEnd"]],bytes("<LINK>", encoding="utf8"))
+                    post_text = postbytes.decode("utf8")
+                else:
+                    post_text = status["record"]["text"]
+                
+                if "embed" in status["record"]:
+                    if status["record"]["embed"]["$type"] == "app.bsky.embed.images":
+                        post_text += " <IMAGE>"
+                    if status["record"]["embed"]["$type"] == "app.bsky.embed.video":
+                        post_text += " <VIDEO>"
+                
+                post_text = post_remove_emojis(post_text, config)
+                post_text = post_highlight_query(post_text, query, config)
+                post_text = charsub(post_text)
+                post_text = textwrap.wrap(post_text, 38) # make sure our lines fit on the screen
+                post_time = parser.isoparse(status["record"]["createdAt"]).astimezone(tz.tzlocal())
+                post_human_time = post_time.strftime("%d/%m %H:%M") # reformat time/date output
+                if "displayName" in status["author"]:
+                    post_username = charsub(status["author"]["displayName"])[:35-len(post_human_time)]
+                else:
+                    post_username = charsub(status["author"]["handle"])[:35-len(post_human_time)]
 
-        for status in statuses: # iterate through our responses
-            post_text = status["record"]["text"]
-            if "facets" in status["record"]:
-                postbytes = bytearray(status["record"]["text"], "utf8")
-                for facet in status["record"]["facets"]:
-                    if facet["features"][0]["$type"] == "app.bsky.richtext.facet#link":
-                        facetbytes = bytearray(status["record"]["text"], "utf8")
-                        postbytes = postbytes.replace(facetbytes[facet["index"]["byteStart"]:facet["index"]["byteEnd"]],bytes("<LINK>", encoding="utf8"))
-                post_text = postbytes.decode("utf8")
-            else:
-                post_text = status["record"]["text"]
-            
-            if "embed" in status["record"]:
-                if status["record"]["embed"]["$type"] == "app.bsky.embed.images":
-                    post_text += " <IMAGE>"
-                if status["record"]["embed"]["$type"] == "app.bsky.embed.video":
-                    post_text += " <VIDEO>"
-            
-            post_text = post_remove_emojis(post_text, config)
-            post_text = post_highlight_query(post_text, query, config)
-            post_text = charsub(post_text)
-            post_text = textwrap.wrap(post_text, 38) # make sure our lines fit on the screen
-            post_time = parser.isoparse(status["record"]["createdAt"]).astimezone(tz.tzlocal())
-            post_human_time = post_time.strftime("%d/%m %H:%M") # reformat time/date output
-            if "displayName" in status["author"]:
-                post_username = charsub(status["author"]["displayName"])[:35-len(post_human_time)]
-            else:
-                post_username = charsub(status["author"]["handle"])[:35-len(post_human_time)]
-
-            post_length = len(post_text) + 1 # how long is our next post? (including info line)
-            if "reply" in status["record"]:
-                post_length = post_length + 1 # add extra line for reply string
-            if (line_position + post_length) > 23: # are we about to go over the page?
-                file.write("OL,24,"+ config["footer"] +"\r\n")
-                if subpage_enhancements:
-                    write_enhancements(file, subpage_enhancements)
-                subpage += 1 # start a new page
-                subpage_enhancements = []
-                if "logo_invocation" in config.keys():
-                    subpage_enhancements.extend(config["logo_invocation"])
-                if subpage > 79:
-                    return # reached subpage limit - dump the rest
-                write_header(file, subpage, max_subpages, config)
-                line_position = 4 # and reset our cursor
-            post_username_enhanced = charenhance(post_username,(37-len(post_human_time)-len(post_username)))
-            if post_username_enhanced[1]:
-                subpage_enhancements.append([line_position+40,4,0]) # active position to start of row
-                subpage_enhancements += post_username_enhanced[1]
-            write_post_info(file, line_position, post_username_enhanced[0], post_human_time, config)
-            line_position += 1
-            
-            if "reply" in status["record"]:
-                response = requests.get(url="https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?depth=0&uri={}".format(status["record"]["reply"]["parent"]["uri"]))
-                j = json.loads(response.text)
-                if "thread" in j:
-                    reply_username = j["thread"]["post"]["author"]["displayName"][:27]
-                    if reply_username == "":
-                        reply_username = j["thread"]["post"]["author"]["handle"][:27]
-                    reply_username_enhanced = charenhance(reply_username, 13)
-                    if reply_username_enhanced[1]:
-                        subpage_enhancements.append([line_position+40,4,0]) # active position to start of row
-                        subpage_enhancements += reply_username_enhanced[1]
-                    write_post_replying(file, line_position, reply_username_enhanced[0], config)
-                    line_position += 1
-            
-            for line in post_text:
-                post_text_line = charenhance(line,1)
-                if post_text_line[1]:
+                post_length = len(post_text) + 1 # how long is our next post? (including info line)
+                if "reply" in status["record"]:
+                    post_length = post_length + 1 # add extra line for reply string
+                if (line_position + post_length) > 23: # are we about to go over the page?
+                    file.write("OL,24,"+ config["footer"] +"\r\n")
+                    if subpage_enhancements:
+                        write_enhancements(file, subpage_enhancements)
+                    subpage += 1 # start a new page
+                    subpage_enhancements = []
+                    if "logo_invocation" in config.keys():
+                        subpage_enhancements.extend(config["logo_invocation"])
+                    if subpage > 79:
+                        return # reached subpage limit - dump the rest
+                    write_header(file, subpage, max_subpages, config)
+                    line_position = 4 # and reset our cursor
+                post_username_enhanced = charenhance(post_username,(37-len(post_human_time)-len(post_username)))
+                if post_username_enhanced[1]:
                     subpage_enhancements.append([line_position+40,4,0]) # active position to start of row
-                    subpage_enhancements += post_text_line[1]
-                write_post_line(file, line_position, post_text_line[0], config)
+                    subpage_enhancements += post_username_enhanced[1]
+                write_post_info(file, line_position, post_username_enhanced[0], post_human_time, config)
                 line_position += 1
+                
+                if "reply" in status["record"]:
+                    response = requests.get(url="https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?depth=0&uri={}".format(status["record"]["reply"]["parent"]["uri"]))
+                    j = json.loads(response.text)
+                    if "thread" in j:
+                        reply_username = j["thread"]["post"]["author"]["displayName"][:27]
+                        if reply_username == "":
+                            reply_username = j["thread"]["post"]["author"]["handle"][:27]
+                        reply_username_enhanced = charenhance(reply_username, 13)
+                        if reply_username_enhanced[1]:
+                            subpage_enhancements.append([line_position+40,4,0]) # active position to start of row
+                            subpage_enhancements += reply_username_enhanced[1]
+                        write_post_replying(file, line_position, reply_username_enhanced[0], config)
+                        line_position += 1
+                
+                for line in post_text:
+                    post_text_line = charenhance(line,1)
+                    if post_text_line[1]:
+                        subpage_enhancements.append([line_position+40,4,0]) # active position to start of row
+                        subpage_enhancements += post_text_line[1]
+                    write_post_line(file, line_position, post_text_line[0], config)
+                    line_position += 1
 
-        # finish the last subpage
-        file.write("OL,24,"+ config["footer"] +"\r\n")
-        if subpage_enhancements:
-            write_enhancements(file, subpage_enhancements)
+            # finish the last subpage
+            file.write("OL,24,"+ config["footer"] +"\r\n")
+            if subpage_enhancements:
+                write_enhancements(file, subpage_enhancements)
 
-        filename = config["tti_path"] + "P" + str(config["page_number"]) + ".tti"
-        try:
-            with open(filename, "r+", newline="") as f: # open existing file
-                file.seek(0)
-                if f.read() != file.read(): # page has changed
-                    print("File updated")
-                    f.seek(0)
+            filename = config["tti_path"] + "P" + str(config["page_number"]) + ".tti"
+            try:
+                with open(filename, "r+", newline="") as f: # open existing file
+                    file.seek(0)
+                    if f.read() != file.read(): # page has changed
+                        print("File updated")
+                        f.seek(0)
+                        file.seek(0)
+                        shutil.copyfileobj(file, f)
+                        f.truncate()
+            except OSError:
+                with open(filename, "w+", newline="") as f: # create new file
+                    print("File created")
                     file.seek(0)
                     shutil.copyfileobj(file, f)
-                    f.truncate()
-        except OSError:
-            with open(filename, "w+", newline="") as f: # create new file
-                print("File created")
-                file.seek(0)
-                shutil.copyfileobj(file, f)
-    else:
-        print("No posts!")
+        else:
+            print("No posts!")
+    except:
+        print("Failed!")
