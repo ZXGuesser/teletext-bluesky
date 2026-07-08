@@ -182,7 +182,9 @@ def write_posts(count, config, query):
                     response = requests.get(url="https://api.bsky.app/xrpc/app.bsky.feed.getPostThread?depth=0&uri={}".format(status["record"]["reply"]["parent"]["uri"]))
                     j = json.loads(response.text)
                     if "thread" in j:
-                        reply_username = j["thread"]["post"]["author"]["displayName"][:27]
+                        reply_username = ""
+                        if "displayName" in j["thread"]["post"]["author"]:
+                            reply_username = j["thread"]["post"]["author"]["displayName"][:27]
                         if reply_username == "":
                             reply_username = j["thread"]["post"]["author"]["handle"][:27]
                         reply_username_enhanced = charenhance(reply_username, 13)
