@@ -110,7 +110,7 @@ def charsub(text):
     
     # emoji stuff
     text = re.sub("[😊☺]","🙂",text,flags=re.UNICODE) # like slightly smiling face
-    text = re.sub("[😁😃😄😆]","😀",text,flags=re.UNICODE) # like grinning face
+    text = re.sub("[😁😃😄]","😀",text,flags=re.UNICODE) # like grinning face
     text = text.replace("😝", "😛") # face with tongue
     text = text.replace("🤣", "😂") # rofl -> face with tears of joy
     text = text.replace("🤓", "😎") # nerd -> sunglasses
@@ -118,6 +118,8 @@ def charsub(text):
     text = re.sub("[😭😥]", "😢",text,flags=re.UNICODE) # like crying face
     text = re.sub("[🤚👋🖐]","✋",text,flags=re.UNICODE) # like raised hand
     text = re.sub("[♡♥🎔💓💖💗💘💙💚💛💜💝💟🖤🧡]","❤",text,flags=re.UNICODE) # like heavy black heart
+    text = re.sub("[💀☠]", "💀",text,flags=re.UNICODE) # like skull
+    text = re.sub("[👆☝]", "👆",text,flags=re.UNICODE) # like pointing upwards
     text = re.sub("["u"\U0000FE00-\U0000FE0F]","",text,flags=re.UNICODE) # strip variation selectors
     
     return text
@@ -312,6 +314,11 @@ enhancementmapping = {
     "✋":[0x20,0x0D,0x0F], # raised hand
     "❤":[0x20,0x0D,0x10], # heavy black heart
     "💔":[0x20,0x0D,0x11], # broken heart
+    "😅":[0x20,0x0D,0x12], # grinning sweat
+    "😆":[0x20,0x0D,0x13], # grinning squinting
+    "👀":[0x20,0x0D,0x14], # eyes
+    "💀":[0x20,0x0D,0x15], # skull
+    "👆":[0x20,0x0D,0x16], # point up
     
     #todo: more mappings
 }
